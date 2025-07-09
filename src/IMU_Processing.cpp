@@ -434,7 +434,8 @@ void ImuProcess::UndistortPcl(LidarMeasureGroup &lidar_meas, StatesGroup &state_
     // cout<<"prop end - start: "<<prop_end_time - prop_beg_time<<" dt_all: "<<dt_all<<endl;
     lidar_meas.last_lio_update_time = prop_end_time;
     // dt = prop_end_time - imu_end_time;
-    // printf("[ LIO Propagation ] dt: %lf \n", dt);
+    cout<<"prop end : "<<std::to_string(prop_end_time) <<endl;
+    printf("[ LIO Propagation ]  last_lio_update_time has change !\n");
     break;
   }
 

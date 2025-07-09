@@ -114,8 +114,8 @@ void LIVMapper::readParameters(ros::NodeHandle &nh)
 
 void LIVMapper::initializeComponents() 
 {
-  downSizeFilterSurf.setLeafSize(filter_size_surf_min, filter_size_surf_min, filter_size_surf_min);
-  extT << VEC_FROM_ARRAY(extrinT);
+  downSizeFilterSurf.setLeafSize(filter_size_surf_min, filter_size_surf_min, filter_size_surf_min);//降采样
+  extT << VEC_FROM_ARRAY(extrinT);//外参
   extR << MAT_FROM_ARRAY(extrinR);
 
   voxelmap_manager->extT_ << VEC_FROM_ARRAY(extrinT);
@@ -126,8 +126,8 @@ void LIVMapper::initializeComponents()
   vio_manager->grid_size = grid_size;
   vio_manager->patch_size = patch_size;
   vio_manager->outlier_threshold = outlier_threshold;
-  vio_manager->setImuToLidarExtrinsic(extT, extR);
-  vio_manager->setLidarToCameraExtrinsic(cameraextrinR, cameraextrinT);
+  vio_manager->setImuToLidarExtrinsic(extT, extR);//imu to lidar
+  vio_manager->setLidarToCameraExtrinsic(cameraextrinR, cameraextrinT);//lidar to camera
   vio_manager->state = &_state;
   vio_manager->state_propagat = &state_propagat;
   vio_manager->max_iterations = max_iterations;
@@ -137,10 +137,10 @@ void LIVMapper::initializeComponents()
   vio_manager->raycast_en = raycast_en;
   vio_manager->grid_n_width = grid_n_width;
   vio_manager->grid_n_height = grid_n_height;
-  vio_manager->patch_pyrimid_level = patch_pyrimid_level;
-  vio_manager->exposure_estimate_en = exposure_estimate_en;
+  vio_manager->patch_pyrimid_level = patch_pyrimid_level;//patch 金字塔
+  vio_manager->exposure_estimate_en = exposure_estimate_en;//是否估计曝光
   vio_manager->colmap_output_en = colmap_output_en;
-  vio_manager->initializeVIO();
+  vio_manager->initializeVIO();//初始化vio
 
   p_imu->set_extrinsic(extT, extR);
   p_imu->set_gyr_cov_scale(V3D(gyr_cov, gyr_cov, gyr_cov));
@@ -166,7 +166,7 @@ void LIVMapper::initializeFiles()
       
       std::string chmodCommand = "chmod +x " + folderPath;
       
-      int chmodRet = system(chmodCommand.c_str());  
+      int chmodRet = system(chmodCommand.c_str());  //设置权限
       if (chmodRet != 0) {
           std::cerr << "Failed to set execute permissions for the script." << std::endl;
           return;
@@ -188,9 +188,9 @@ void LIVMapper::initializeSubscribersAndPublishers(ros::NodeHandle &nh, image_tr
 {
   sub_pcl = p_pre->lidar_type == AVIA ? 
             nh.subscribe(lid_topic, 200000, &LIVMapper::livox_pcl_cbk, this): 
-            nh.subscribe(lid_topic, 200000, &LIVMapper::standard_pcl_cbk, this);
-  sub_imu = nh.subscribe(imu_topic, 200000, &LIVMapper::imu_cbk, this);
-  sub_img = nh.subscribe(img_topic, 200000, &LIVMapper::img_cbk, this);
+            nh.subscribe(lid_topic, 200000, &LIVMapper::standard_pcl_cbk, this);//订阅lidar
+  sub_imu = nh.subscribe(imu_topic, 200000, &LIVMapper::imu_cbk, this);//订阅imu
+  sub_img = nh.subscribe(img_topic, 200000, &LIVMapper::img_cbk, this);//订阅img
   
   pubLaserCloudFullRes = nh.advertise<sensor_msgs::PointCloud2>("/cloud_registered", 100);
   pubNormal = nh.advertise<visualization_msgs::MarkerArray>("visualization_marker", 100);
@@ -207,7 +207,7 @@ void LIVMapper::initializeSubscribersAndPublishers(ros::NodeHandle &nh, image_tr
   mavros_pose_publisher = nh.advertise<geometry_msgs::PoseStamped>("/mavros/vision_pose/pose", 10);
   pubImage = it.advertise("/rgb_img", 1);
   pubImuPropOdom = nh.advertise<nav_msgs::Odometry>("/LIVO2/imu_propagate", 10000);
-  imu_prop_timer = nh.createTimer(ros::Duration(0.004), &LIVMapper::imu_prop_callback, this);
+  imu_prop_timer = nh.createTimer(ros::Duration(0.004), &LIVMapper::imu_prop_callback, this);//定时器
   voxelmap_manager->voxel_map_pub_= nh.advertise<visualization_msgs::MarkerArray>("/planes", 10000);
 }
 
@@ -215,7 +215,7 @@ void LIVMapper::handleFirstFrame()
 {
   if (!is_first_frame)
   {
-    _first_lidar_time = LidarMeasures.last_lio_update_time;
+    _first_lidar_time = LidarMeasures.last_lio_update_time;//LIDAR 时间
     p_imu->first_lidar_time = _first_lidar_time; // Only for IMU data log
     is_first_frame = true;
     cout << "FIRST LIDAR FRAME!" << endl;
@@ -272,15 +272,14 @@ void LIVMapper::stateEstimationAndMapping()
       break;
   }
 }
-
 void LIVMapper::handleVIO() 
 {
-  euler_cur = RotMtoEuler(_state.rot_end);
+  euler_cur = RotMtoEuler(_state.rot_end);//当前位姿
   fout_pre << std::setw(20) << LidarMeasures.last_lio_update_time - _first_lidar_time << " " << euler_cur.transpose() * 57.3 << " "
             << _state.pos_end.transpose() << " " << _state.vel_end.transpose() << " " << _state.bias_g.transpose() << " "
             << _state.bias_a.transpose() << " " << V3D(_state.inv_expo_time, 0, 0).transpose() << std::endl;
     
-  if (pcl_w_wait_pub->empty() || (pcl_w_wait_pub == nullptr)) 
+  if (pcl_w_wait_pub->empty() || (pcl_w_wait_pub == nullptr)) //lio 提供的点
   {
     std::cout << "[ VIO ] No point!!!" << std::endl;
     return;
@@ -327,10 +326,10 @@ void LIVMapper::handleVIO()
             << _state.pos_end.transpose() << " " << _state.vel_end.transpose() << " " << _state.bias_g.transpose() << " "
             << _state.bias_a.transpose() << " " << V3D(_state.inv_expo_time, 0, 0).transpose() << " " << feats_undistort->points.size() << std::endl;
 }
-
+//先处理lio
 void LIVMapper::handleLIO() 
 {    
-  euler_cur = RotMtoEuler(_state.rot_end);
+  euler_cur = RotMtoEuler(_state.rot_end);//当前姿态
   fout_pre << setw(20) << LidarMeasures.last_lio_update_time - _first_lidar_time << " " << euler_cur.transpose() * 57.3 << " "
            << _state.pos_end.transpose() << " " << _state.vel_end.transpose() << " " << _state.bias_g.transpose() << " "
            << _state.bias_a.transpose() << " " << V3D(_state.inv_expo_time, 0, 0).transpose() << endl;
@@ -350,18 +349,18 @@ void LIVMapper::handleLIO()
 
   feats_down_size = feats_down_body->points.size();
   voxelmap_manager->feats_down_body_ = feats_down_body;
-  transformLidar(_state.rot_end, _state.pos_end, feats_down_body, feats_down_world);
+  transformLidar(_state.rot_end, _state.pos_end, feats_down_body, feats_down_world);//转到世界坐标系
   voxelmap_manager->feats_down_world_ = feats_down_world;
   voxelmap_manager->feats_down_size_ = feats_down_size;
   
   if (!lidar_map_inited) 
   {
     lidar_map_inited = true;
-    voxelmap_manager->BuildVoxelMap();
+    voxelmap_manager->BuildVoxelMap();//构建voxel map
   }
 
   double t1 = omp_get_wtime();
-
+  //状态估计
   voxelmap_manager->StateEstimation(state_propagat);
   _state = voxelmap_manager->state_;
   _pv_list = voxelmap_manager->pv_list_;
@@ -532,12 +531,12 @@ void LIVMapper::run()
   while (ros::ok()) 
   {
     ros::spinOnce();
-    if (!sync_packages(LidarMeasures)) 
+    if (!sync_packages(LidarMeasures)) //传感器数据同步
     {
       rate.sleep();
       continue;
     }
-    handleFirstFrame();
+    handleFirstFrame();//记录第一帧lidar 的时间
 
     processImu();
 
@@ -683,7 +682,7 @@ void LIVMapper::RGBpointBodyToWorld(PointType const *const pi, PointType *const 
   po->z = p_global(2);
   po->intensity = pi->intensity;
 }
-
+//点云回调
 void LIVMapper::standard_pcl_cbk(const sensor_msgs::PointCloud2::ConstPtr &msg)
 {
   if (!lidar_en) return;
@@ -699,8 +698,8 @@ void LIVMapper::standard_pcl_cbk(const sensor_msgs::PointCloud2::ConstPtr &msg)
   // ROS_INFO("get point cloud at time: %.6f", msg->header.stamp.toSec());
   PointCloudXYZI::Ptr ptr(new PointCloudXYZI());
   p_pre->process(msg, ptr);
-  lid_raw_data_buffer.push_back(ptr);
-  lid_header_time_buffer.push_back(cur_head_time);
+  lid_raw_data_buffer.push_back(ptr);//存点云
+  lid_header_time_buffer.push_back(cur_head_time);//存时间
   last_timestamp_lidar = cur_head_time;
 
   mtx_buffer.unlock();
@@ -749,7 +748,7 @@ void LIVMapper::livox_pcl_cbk(const livox_ros_driver::CustomMsg::ConstPtr &msg_i
   mtx_buffer.unlock();
   sig_buffer.notify_all();
 }
-
+//imu回调
 void LIVMapper::imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in)
 {
   if (!imu_en) return;
@@ -789,13 +788,13 @@ void LIVMapper::imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in)
 
   last_timestamp_imu = timestamp;
 
-  imu_buffer.push_back(msg);
+  imu_buffer.push_back(msg);//主缓冲区  用于状态估计
   // cout<<"got imu: "<<timestamp<<" imu size "<<imu_buffer.size()<<endl;
   mtx_buffer.unlock();
   if (imu_prop_enable)
   {
     mtx_buffer_imu_prop.lock();
-    if (imu_prop_enable && !p_imu->imu_need_init) { prop_imu_buffer.push_back(*msg); }
+    if (imu_prop_enable && !p_imu->imu_need_init) { prop_imu_buffer.push_back(*msg); }//预计分缓冲区
     newest_imu = *msg;
     new_imu = true;
     mtx_buffer_imu_prop.unlock();
@@ -809,7 +808,7 @@ cv::Mat LIVMapper::getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
   img = cv_bridge::toCvCopy(img_msg, "bgr8")->image;
   return img;
 }
-
+//图像回调
 void LIVMapper::img_cbk(const sensor_msgs::ImageConstPtr &msg_in)
 {
   if (!img_en) return;
@@ -831,7 +830,7 @@ void LIVMapper::img_cbk(const sensor_msgs::ImageConstPtr &msg_in)
   double msg_header_time = msg->header.stamp.toSec() + img_time_offset;
   if (abs(msg_header_time - last_timestamp_img) < 0.001) return;
   ROS_INFO("Get image, its header time: %.6f", msg_header_time);
-  if (last_timestamp_lidar < 0) return;
+  if (last_timestamp_lidar < 0) return;//点云时间异常
 
   if (msg_header_time < last_timestamp_img)
   {
@@ -851,9 +850,9 @@ void LIVMapper::img_cbk(const sensor_msgs::ImageConstPtr &msg_in)
     return;
   }
 
-  cv::Mat img_cur = getImageFromMsg(msg);
+  cv::Mat img_cur = getImageFromMsg(msg);//图像转换
   img_buffer.push_back(img_cur);
-  img_time_buffer.push_back(img_time_correct);
+  img_time_buffer.push_back(img_time_correct);//存入时间
 
   // ROS_INFO("Correct Image time: %.6f", img_time_correct);
 
@@ -870,7 +869,7 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
   if (lid_raw_data_buffer.empty() && lidar_en) return false;
   if (img_buffer.empty() && img_en) return false;
   if (imu_buffer.empty() && imu_en) return false;
-
+  printf("sync_packages start!!! \n");
   switch (slam_mode_)
   {
   case ONLY_LIO:
@@ -930,23 +929,27 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
     switch (last_lio_vio_flg)
     {
     // double img_capture_time = meas.lidar_frame_beg_time + exposure_time_init;
-    case WAIT:
+    case WAIT://因为后面无break 顺序进到VIO
     case VIO:
     {
       // printf("!!! meas.lio_vio_flg: %d \n", meas.lio_vio_flg);
-      double img_capture_time = img_time_buffer.front() + exposure_time_init;
+      double img_capture_time = img_time_buffer.front() + exposure_time_init;//图像时间
       /*** has img topic, but img topic timestamp larger than lidar end time,
        * process lidar topic. After LIO update, the meas.lidar_frame_end_time
        * will be refresh. ***/
-      if (meas.last_lio_update_time < 0.0) meas.last_lio_update_time = lid_header_time_buffer.front();
+      if (meas.last_lio_update_time < 0.0) meas.last_lio_update_time = lid_header_time_buffer.front();//设置点云时间为基准
       // printf("[ Data Cut ] wait \n");
-      // printf("[ Data Cut ] last_lio_update_time: %lf \n",
-      // meas.last_lio_update_time);
+      printf("[ Data Cut ] last_lio_update_time: %lf \n",
+       meas.last_lio_update_time);
+      //////////////////////////head_time + back_point time
+      double lid_newest_time = lid_header_time_buffer.back() + lid_raw_data_buffer.back()->points.back().curvature / double(1000);//雷达的最新时间
+      double imu_newest_time = imu_buffer.back()->header.stamp.toSec();//imu的最新时间
 
-      double lid_newest_time = lid_header_time_buffer.back() + lid_raw_data_buffer.back()->points.back().curvature / double(1000);
-      double imu_newest_time = imu_buffer.back()->header.stamp.toSec();
-
-      if (img_capture_time < meas.last_lio_update_time + 0.00001)
+      /*
+        时间超前过滤：若图像时间早于激光雷达时间，丢弃该图像（第一帧时可能不触发）。
+        时间滞后过滤：若图像时间晚于最新激光雷达 / IMU 时间，视为数据失序，返回 false（第一帧时通常满足时间顺序，不触发）
+      */
+      if (img_capture_time < meas.last_lio_update_time + 0.00001)//队列的第一帧时间
       {
         img_buffer.pop_front();
         img_time_buffer.pop_front();
@@ -956,20 +959,19 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
 
       if (img_capture_time > lid_newest_time || img_capture_time > imu_newest_time)
       {
-        // ROS_ERROR("lost first camera frame");
-        // printf("img_capture_time, lid_newest_time, imu_newest_time: %lf , %lf
-        // , %lf \n", img_capture_time, lid_newest_time, imu_newest_time);
+        ROS_ERROR("lost first camera frame");
+        printf("img_capture_time, lid_newest_time, imu_newest_time: %lf , %lf, %lf \n", img_capture_time, lid_newest_time, imu_newest_time);
         return false;
       }
 
       struct MeasureGroup m;
 
-      // printf("[ Data Cut ] LIO \n");
-      // printf("[ Data Cut ] img_capture_time: %lf \n", img_capture_time);
+      printf("[ Data Cut ] LIO \n");
+      printf("[ Data Cut ] img_capture_time: %lf \n", img_capture_time);
       m.imu.clear();
-      m.lio_time = img_capture_time;
+      m.lio_time = img_capture_time;//将lidar时间设置为图像时间
       mtx_buffer.lock();
-      while (!imu_buffer.empty())
+      while (!imu_buffer.empty())//存储中间的imu数据
       {
         if (imu_buffer.front()->header.stamp.toSec() > m.lio_time) break;
 
@@ -982,31 +984,35 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
       mtx_buffer.unlock();
       sig_buffer.notify_all();
 
-      *(meas.pcl_proc_cur) = *(meas.pcl_proc_next);
-      PointCloudXYZI().swap(*meas.pcl_proc_next);
+      *(meas.pcl_proc_cur) = *(meas.pcl_proc_next);//将下帧数据拷贝到当前帧 
+      PointCloudXYZI().swap(*meas.pcl_proc_next);//下一帧重置
 
-      int lid_frame_num = lid_raw_data_buffer.size();
-      int max_size = meas.pcl_proc_cur->size() + 24000 * lid_frame_num;
+      int lid_frame_num = lid_raw_data_buffer.size();//点云帧的个数
+      int max_size = meas.pcl_proc_cur->size() + 24000 * lid_frame_num;//预设大小
       meas.pcl_proc_cur->reserve(max_size);
       meas.pcl_proc_next->reserve(max_size);
       // deque<PointCloudXYZI::Ptr> lidar_buffer_tmp;
-
-      while (!lid_raw_data_buffer.empty())
+      /*
+        点云切割：根据 img_capture_time 将激光雷达点云分割为两部分：
+        时间早于 img_capture_time 的点云存入 pcl_proc_cur（当前处理帧）；
+        时间晚于 img_capture_time 的点云存入 pcl_proc_next（下一帧缓冲）
+      */
+      while (!lid_raw_data_buffer.empty())//遍历lidar frame buffer
       {
-        if (lid_header_time_buffer.front() > img_capture_time) break;
-        auto pcl(lid_raw_data_buffer.front()->points);
-        double frame_header_time(lid_header_time_buffer.front());
-        float max_offs_time_ms = (m.lio_time - frame_header_time) * 1000.0f;
+        if (lid_header_time_buffer.front() > img_capture_time) break;//超过图像时间的点云帧 返回
+        auto pcl(lid_raw_data_buffer.front()->points);//取出该帧点云
+        double frame_header_time(lid_header_time_buffer.front());//时间
+        float max_offs_time_ms = (m.lio_time - frame_header_time) * 1000.0f;//时间偏移
 
         for (int i = 0; i < pcl.size(); i++)
         {
           auto pt = pcl[i];
-          if (pcl[i].curvature < max_offs_time_ms)
+          if (pcl[i].curvature < max_offs_time_ms)//小于这个时间的点云放到当前帧中处理
           {
             pt.curvature += (frame_header_time - meas.last_lio_update_time) * 1000.0f;
             meas.pcl_proc_cur->points.push_back(pt);
           }
-          else
+          else//否则放到下一帧
           {
             pt.curvature += (frame_header_time - m.lio_time) * 1000.0f;
             meas.pcl_proc_next->points.push_back(pt);
@@ -1018,11 +1024,9 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
 
       meas.measures.push_back(m);
       meas.lio_vio_flg = LIO;
-      // meas.last_lio_update_time = m.lio_time;
-      // printf("!!! meas.lio_vio_flg: %d \n", meas.lio_vio_flg);
-      // printf("[ Data Cut ] pcl_proc_cur number: %d \n", meas.pcl_proc_cur
-      // ->points.size()); printf("[ Data Cut ] LIO process time: %lf \n",
-      // omp_get_wtime() - t0);
+      //// meas.last_lio_update_time = m.lio_time;
+      printf("!!! meas.lio_vio_flg: %d \n", meas.lio_vio_flg);
+      printf("[ Data Cut ] pcl_proc_cur number: %d \n", meas.pcl_proc_cur->points.size()); //printf("[ Data Cut ] LIO process time: %lf \n",omp_get_wtime() - t0);
       return true;
     }
 
@@ -1030,13 +1034,15 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
     {
       double img_capture_time = img_time_buffer.front() + exposure_time_init;
       meas.lio_vio_flg = VIO;
-      // printf("[ Data Cut ] VIO \n");
+      printf("[ Data Cut ] VIO \n");
       meas.measures.clear();
       double imu_time = imu_buffer.front()->header.stamp.toSec();
 
       struct MeasureGroup m;
       m.vio_time = img_capture_time;
       m.lio_time = meas.last_lio_update_time;
+      printf("[ Data Cut ] img_capture_time: %lf \n", img_capture_time);
+      printf("[ Data Cut ]  meas.last_lio_update_time: %lf \n",  meas.last_lio_update_time);
       m.img = img_buffer.front();
       mtx_buffer.lock();
       // while ((!imu_buffer.empty() && (imu_time < img_capture_time)))
